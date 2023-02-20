@@ -273,42 +273,42 @@
 
 ; Method that displays melody1 of a music sample
 ( defmethod display-melody1 ( (m music) )
-    ( format t "Melody 1: ~A~%" ( display-notes-list ( music-melody1 m ) ) )
+    ( format t "Melody 1: ~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
 )
 
 ; Method that displays melody2 of a music sample
 ( defmethod display-melody2 ( (m music) )
-    ( format t "Melody 2: ~A~%" ( display-notes-list ( music-melody2 m ) ) )
+    ( format t "Melody 2: ~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
 )
 
 ; Method that displays melody3 of a music sample
 ( defmethod display-melody3 ( (m music) )
-    ( format t "Melody 3: ~A~%" ( display-notes-list ( music-melody3 m ) ) )
+    ( format t "Melody 3: ~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
 )
 
 ; Method that displays melody1 and melody2 of a music sample
 ( defmethod display-melody1&2 ( (m music) )
-    ( format t "Melody 1: ~A~%" ( display-notes-list ( music-melody1 m ) ) )
-    ( format t "Melody 2: ~A~%" ( display-notes-list ( music-melody2 m ) ) )
+    ( format t "Melody 1: ~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
+    ( format t "Melody 2: ~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
 )
 
 ; Method that displays melody1 and melody3 of a music sample
 ( defmethod display-melody1&3 ( ( m music ) )
-    ( format t "Melody 1: ~A~%" ( display-notes-list ( music-melody1 m ) ) )
-    ( format t "Melody 3: ~A~%" ( display-notes-list ( music-melody3 m ) ) )
+    ( format t "Melody 1: ~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
+    ( format t "Melody 3: ~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
 )
 
 ; Method that displays melody2 and melody3 of a music sample
 ( defmethod display-melody2&3 ( ( m music ) )
-    ( format t "Melody 2: ~A~%" ( display-notes-list ( music-melody2 m ) ) )
-    ( format t "Melody 3: ~A~%" ( display-notes-list ( music-melody3 m ) ) )
+    ( format t "Melody 2: ~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
+    ( format t "Melody 3: ~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
 )
 
 ; Method that displays all melodies of a music sample
 ( defmethod display-all-melodies ( ( m music ) )
-    ( format t "Melody 1: ~A~%" ( display-notes-list ( music-melody1 m ) ) )
-    ( format t "Melody 2: ~A~%" ( display-notes-list ( music-melody2 m ) ) )
-    ( format t "Melody 3: ~A~%" ( display-notes-list ( music-melody3 m ) ) )
+    ( format t "Melody 1: ~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
+    ( format t "Melody 2: ~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
+    ( format t "Melody 3: ~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
 )
 
 ; Method that demos the display methods of the music class
