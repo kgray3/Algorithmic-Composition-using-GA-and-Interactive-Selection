@@ -273,6 +273,8 @@
     )
 )
 
+; Method to generate a music sample given an individual number. Used for the initial
+; population creation.
 ( defmethod generate-music-sample ( i-num )
     ( setf melody1-notes ( generate-melody1 ) )
     ( setf melody2-notes ( generate-melody2 melody1-notes ) )
@@ -326,6 +328,7 @@
     ( format t "Melody 1: ~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
     ( format t "Melody 2: ~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
     ( format t "Melody 3: ~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
+    ( terpri )
 )
 
 ; Method that demos the display methods of the music class
@@ -510,11 +513,13 @@
 
 )
 
-
+; Global variable for the size of a population.
 ( defconstant *population-size* 100 )
 
+; Global variable for the size of selection.
 ( defconstant *selection-size* 4 )
 
+; Population Class -- consists of a list of music individuals and generation number.
 ( defclass population ()
     (
         ( individuals :accessor population-individuals :initarg :individuals )
@@ -522,22 +527,50 @@
     )
 )
 
+; Calculates the size of a population.
 ( defmethod size ( ( p population ) )
     ( length ( population-indiviudals p ) )
 )
 
+; Displays the population in terms of salient information for the developer.
+; (all melodies are not displayed -> instead individual #, 
+; music object, and fitness are shown )
 ( defmethod display ( ( p population ) )
     ( terpri ) ( terpri )
     ( princ "Generation " )
-    ( prin1 ( population-individuals  p ) )
+    ( prin1 ( population-generation  p ) )
     ( princ " population ..." )
     ( terpri ) ( terpri )
     ( dolist ( i ( population-individuals p ) )
-        ( display-all-melodies i )
+
+        ( prin1 ( music-num i ) )
+        ( princ ( filler ( music-num i ) ) )
+
+        ( prin1 i  )
+
+        ( princ "  " )
+        ( prin1 ( music-rank i ) )
+        ( princ ( filler ( music-rank i ) ) )
+         ( terpri )
+        
+        
     )
     ( terpri )
 )
 
+; Helper method to create space for individuals in population display method.
+( defmethod filler ( ( n number ) )
+    (cond
+        ( ( < n 10 ) "     " )
+        ( ( < n 100 ) "    " )
+        ( ( < n 1000 ) "   " )
+        ( ( < n 10000 ) "  " )
+        ( ( < n 100000 ) " " )
+    )
+
+)
+
+; Method to generate the initial population based on a population size.
 ( defmethod initial-population ( &aux individuals )
     ( setf individuals () )
     ( dotimes ( i *population-size* )
@@ -546,51 +579,22 @@
     ( make-instance 'population :individuals ( reverse individuals ) )
 )
 
-( defmethod average ( ( p population ) &aux ( sum 0 ) )
+; Method to calculate the average fitness of a population.
+( defmethod average ( ( p population ) &aux ( total 0 ) )
     ( setf indiv-list ( population-individuals p ) )
-    ( setf sum ( sum-nums ( mapcar #'music-rank indiv-list ) ) )
-    ( float ( / sum *population-size* ) )
+    ( setf total ( sum ( mapcar #'music-rank indiv-list ) ) )
+    ( float ( / total *population-size* ) )
 )
 
-( defmethod sum-nums ( ( li list ) )
-    (cond
-        (( null li )
-            0
-        )
-
-        (t
-            ( + ( car li ) ( sum-nums ( cdr li ) ) )
-        )
-    )
-)
-
-( setf *select-demo* nil )
-
-( defmethod select-individual ( ( p population ) 
-   &aux i candidates rn )
-    ( setf candidates ( select-individuals p ) )
-    ( setf mfi ( most-fit-individual candidates ) )
-    ( if *select-demo* ( select-demo-helper candidates mfi ) )
-    mfi
-)
-
-( defmethod select-individuals ( ( p population ) 
-    &aux individuals candidates rn )
-    ( setf individuals ( population-individuals p ) )
-    ( setf candidates () )
-    ( dotimes ( i *selection-size* )
-        ( setf rn ( random *population-size* ) )
-        ( push ( nth rn individuals ) candidates )
-    )
-    candidates
-)
-
+; Method to calculate and display the highest-ranked music individual in a list of
+; music individuals.
 ( defmethod most-fit-individual ( ( l list ) &aux max-value max-individual ) 
     ( setf max-individual ( max-val l 0 ) )
     ( setf max-value ( music-rank max-individual ) )
     max-individual 
 )
 
+; Method to calculate the maximum value given a list.
 ( defmethod max-val ( ( l list ) current-max )
     (cond
         (( null l )
@@ -605,26 +609,10 @@
     )
 )
 
-( defmethod select-demo-helper ( ( l list ) ( i music ) )
-    ( princ "the sample of individuals ...") ( terpri )
-    ( mapcar #'display-all-melodies l )
-    ( terpri )
-    ( princ "the most fit of the sample ..." ) ( terpri )
-    ( display-all-melodies i )
-    ( terpri )
-    nil
-)
 
-; change it so only population objects display -- actually display the selected individuals
+; Demo to generate an initial population.
 ( defmethod population-demo ( &aux p )
     ( setf p ( initial-population ) )
     ( display p )
     ( format t "Average fitness = ~A~%~%" ( average p ) )
-    ( setf *select-demo* t )
-    ( format t "Sampling ... ~%~%" )
-    ( select-individual p ) ( terpri )
-    ( format t "Sampling ... ~%~%" )
-    ( select-individual p ) ( terpri )
-    ( format t "Sampling ... ~%~%" )
-    ( select-individual p ) ( terpri )
 )
