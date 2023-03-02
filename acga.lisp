@@ -2,7 +2,7 @@
 ; Hybridized constraint system and genetic algorithm for
 ; user-interactive algorithmic composition.
 
-( setf *beat-total* 26 )
+( setf *beat-total* 8 )
 ; Global var for current constraint array we are woring with
 ( setf *constraint-arr* '() )
 
@@ -268,22 +268,39 @@
         ( melody2 :accessor music-melody2 :initarg :melody2 )
         ( melody3 :accessor music-melody3 :initarg :melody3 )
         ( str-representation :accessor music-str-representation :initarg :str-representation )
+        ( rank :accessor music-rank :initarg :rank )
+        ( num :accessor music-num :initarg :num )
+    )
+)
+
+( defmethod generate-music-sample ( i-num )
+    ( setf melody1-notes ( generate-melody1 ) )
+    ( setf melody2-notes ( generate-melody2 melody1-notes ) )
+    ( setf melody3-notes ( generate-bassline ) )
+
+    ( make-instance 'music
+        :melody1 melody1-notes
+        :melody2 melody2-notes
+        :melody3 melody3-notes
+        :str-representation ""
+        :rank 0
+        :num i-num
     )
 )
 
 ; Method that displays melody1 of a music sample
 ( defmethod display-melody1 ( (m music) )
-    ( format t "Melody 1: ~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
+    ( format t "~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
 )
 
 ; Method that displays melody2 of a music sample
 ( defmethod display-melody2 ( (m music) )
-    ( format t "Melody 2: ~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
+    ( format t "~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
 )
 
 ; Method that displays melody3 of a music sample
 ( defmethod display-melody3 ( (m music) )
-    ( format t "Melody 3: ~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
+    ( format t "~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
 )
 
 ; Method that displays melody1 and melody2 of a music sample
@@ -323,6 +340,8 @@
             :melody2 melody2-notes
             :melody3 melody3-notes
             :str-representation ""
+            :rank 0
+            :num 1
         )
     )
 
@@ -353,4 +372,259 @@
     ( print "----------------DISPLAY ALL MELODIES TEST----------------")
     (terpri)
     ( display-all-melodies sample )
+)
+
+; Method for mutating a music sample -- each melody is mutated
+
+( defmethod mutation ( ( m music ) )
+    ( setf melody1-list ( music-melody1 m ) )
+    ( setf melody2-list ( music-melody2 m ) )
+    ( setf melody3-list ( music-melody3 m ) )
+
+    ( mutate-note-list melody1-list *CMAJOR* *melody-durations* )
+    ( mutate-note-list melody2-list *CMAJOR* *melody-durations* )
+    ( mutate-note-list melody3-list *CMAJOR* *bassline-durations* )
+
+)
+
+; Helper method for mutating an individual notes list -- the mutation 
+; changes the pitch and duration of a single note
+( defmethod mutate-note-list ( ( notes-list list ) ( pitch-list list ) ( duration-list list ) )
+    ( setf note-to-change ( nth ( random ( length notes-list ) ) notes-list ) )
+    ( setf new-note-pitch ( nth ( random ( length pitch-list ) ) pitch-list ) )
+    ( setf new-note-duration ( nth ( random ( length duration-list ) ) duration-list ) )
+    ( setf new-note-str ( generate-str-representation new-note-pitch new-note-duration ( note-octave note-to-change ) ) )
+
+    ; if the same note is generated, recursively call on the method again
+    (cond 
+        ( ( and ( equal new-note-pitch ( note-pitch note-to-change ) )
+                ( equal new-note-duration ( note-pitch note-to-change ) ) ) 
+            ( mutate-note-list notes-list pitch-list duration-list )
+        )
+    )
+
+    ( setf ( note-pitch note-to-change ) new-note-pitch )
+    ( setf ( note-duration note-to-change ) new-note-duration )
+    ( setf ( note-str-representation note-to-change ) new-note-str )
+
+)
+
+; Method for demoing mutation on a music sample
+;   -Mutation is defined as changing the pitch and duration of a note in each of the melodies of
+;   a music sample
+;   -This method generates a music sample and performs mutation 4 times.
+( defmethod demo--mutation ()
+    ( setf melody1-notes ( generate-melody1 ) )
+    ( setf melody2-notes ( generate-melody2 melody1-notes ) )
+    ( setf melody3-notes ( generate-bassline ) )
+
+    ( setf sample 
+        ( make-instance 'music
+            :melody1 melody1-notes
+            :melody2 melody2-notes
+            :melody3 melody3-notes
+            :str-representation ""
+            :rank 0
+            :num 1
+        )
+    )
+    
+    ( format t "-------------------Trial 1-------------------~%")
+    ( display-all-melodies sample )
+    ( mutation sample )
+    ( terpri )
+    ( format t "-Mutation-~%" )
+    ( display-all-melodies sample )
+    ( terpri )
+    ( format t "-------------------Trial 2-------------------~%")
+    ( display-all-melodies sample )
+    ( mutation sample )
+    ( terpri )
+    ( format t "-Mutation-~%" )
+    ( display-all-melodies sample )
+    ( terpri )
+    ( format t "-------------------Trial 3-------------------~%")
+    ( display-all-melodies sample )
+    ( mutation sample )
+    ( terpri )
+    ( format t "-Mutation-~%" )
+    ( display-all-melodies sample )
+    ( terpri )
+    ( format t "-------------------Trial 4-------------------~%")
+    ( display-all-melodies sample )
+    ( mutation sample )
+    ( terpri )
+    ( format t "-Mutation-~%" )
+    ( display-all-melodies sample )
+    ( terpri )
+
+)
+
+; Method to display a music sample in such a way that it can be copied and pasted
+; directly into EasyABC notation
+( defmethod easyabc-display ( ( sample music ) )
+    ( format t "----------------Individual ~A----------------~%" ( music-num sample ) )
+    ( format t "X:1~%")
+    ( format t "T:Individual ~A~%" ( music-num sample ) )
+    ( format t "C:Dystopian Tuesday~%" )
+    ( format t "M:4/4~%" )
+    ( format t "L:1/4~%" )
+    ( format t "Q:1/4=120~%")
+    ( format t "V:S clef=treble name=S~%" )
+    ( format t "V:A clef=treble name=A~%" )
+    ( format t "V:T clef=treble name=T~%" )
+    ( format t "%%score [ ( S ) ( A ) ( T ) ]~%")
+    ( format t "K:C~%" )
+    ( format t "V:S~%" )
+    ; set instrument for midi
+    ( format t "%%MIDI program 0~%" )
+    ( display-melody1 sample )
+    ( format t "V:A~%" )
+    ( display-melody2 sample )
+    ( format t "V:T~%" )
+    ( display-melody3 sample )
+)
+
+; Demo method to test the EasyABC display
+( defmethod demo--display-individual ()
+    ( setf melody1-notes ( generate-melody1 ) )
+    ( setf melody2-notes ( generate-melody2 melody1-notes ) )
+    ( setf melody3-notes ( generate-bassline ) )
+
+    ( setf sample 
+        ( make-instance 'music
+            :melody1 melody1-notes
+            :melody2 melody2-notes
+            :melody3 melody3-notes
+            :str-representation ""
+            :rank 0
+            :num 1
+        )
+    )
+
+    ( easyabc-display sample )
+    ( terpri )
+    ( format t "---------------PERFORMING MUTATION---------------~%")
+    ( mutation sample )
+    ( easyabc-display sample )
+
+)
+
+
+( defconstant *population-size* 100 )
+
+( defconstant *selection-size* 4 )
+
+( defclass population ()
+    (
+        ( individuals :accessor population-individuals :initarg :individuals )
+        ( generation :accessor population-generation :initform 0 )
+    )
+)
+
+( defmethod size ( ( p population ) )
+    ( length ( population-indiviudals p ) )
+)
+
+( defmethod display ( ( p population ) )
+    ( terpri ) ( terpri )
+    ( princ "Generation " )
+    ( prin1 ( population-individuals  p ) )
+    ( princ " population ..." )
+    ( terpri ) ( terpri )
+    ( dolist ( i ( population-individuals p ) )
+        ( display-all-melodies i )
+    )
+    ( terpri )
+)
+
+( defmethod initial-population ( &aux individuals )
+    ( setf individuals () )
+    ( dotimes ( i *population-size* )
+        ( push ( generate-music-sample ( + i 1 ) ) individuals )
+    )
+    ( make-instance 'population :individuals ( reverse individuals ) )
+)
+
+( defmethod average ( ( p population ) &aux ( sum 0 ) )
+    ( setf indiv-list ( population-individuals p ) )
+    ( setf sum ( sum-nums ( mapcar #'music-rank indiv-list ) ) )
+    ( float ( / sum *population-size* ) )
+)
+
+( defmethod sum-nums ( ( li list ) )
+    (cond
+        (( null li )
+            0
+        )
+
+        (t
+            ( + ( car li ) ( sum-nums ( cdr li ) ) )
+        )
+    )
+)
+
+( setf *select-demo* nil )
+
+( defmethod select-individual ( ( p population ) 
+   &aux i candidates rn )
+    ( setf candidates ( select-individuals p ) )
+    ( setf mfi ( most-fit-individual candidates ) )
+    ( if *select-demo* ( select-demo-helper candidates mfi ) )
+    mfi
+)
+
+( defmethod select-individuals ( ( p population ) 
+    &aux individuals candidates rn )
+    ( setf individuals ( population-individuals p ) )
+    ( setf candidates () )
+    ( dotimes ( i *selection-size* )
+        ( setf rn ( random *population-size* ) )
+        ( push ( nth rn individuals ) candidates )
+    )
+    candidates
+)
+
+( defmethod most-fit-individual ( ( l list ) &aux max-value max-individual ) 
+    ( setf max-individual ( max-val l 0 ) )
+    ( setf max-value ( music-rank max-individual ) )
+    max-individual 
+)
+
+( defmethod max-val ( ( l list ) current-max )
+    (cond
+        (( null l )
+            current-max
+        )
+        (( or ( equal current-max 0 ) ( > ( music-rank ( car l ) ) ( music-rank current-max ) ) )
+            ( max-val ( cdr l ) ( car l ) )
+        )
+        (t
+            ( max-val ( cdr l ) current-max )
+        )
+    )
+)
+
+( defmethod select-demo-helper ( ( l list ) ( i music ) )
+    ( princ "the sample of individuals ...") ( terpri )
+    ( mapcar #'display-all-melodies l )
+    ( terpri )
+    ( princ "the most fit of the sample ..." ) ( terpri )
+    ( display-all-melodies i )
+    ( terpri )
+    nil
+)
+
+; change it so only population objects display -- actually display the selected individuals
+( defmethod population-demo ( &aux p )
+    ( setf p ( initial-population ) )
+    ( display p )
+    ( format t "Average fitness = ~A~%~%" ( average p ) )
+    ( setf *select-demo* t )
+    ( format t "Sampling ... ~%~%" )
+    ( select-individual p ) ( terpri )
+    ( format t "Sampling ... ~%~%" )
+    ( select-individual p ) ( terpri )
+    ( format t "Sampling ... ~%~%" )
+    ( select-individual p ) ( terpri )
 )
