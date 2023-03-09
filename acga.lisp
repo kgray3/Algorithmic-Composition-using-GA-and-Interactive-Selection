@@ -267,8 +267,9 @@
         ( melody1 :accessor music-melody1 :initarg :melody1 )
         ( melody2 :accessor music-melody2 :initarg :melody2 )
         ( melody3 :accessor music-melody3 :initarg :melody3 )
-        ( str-representation :accessor music-str-representation :initarg :str-representation )
         ( rank :accessor music-rank :initarg :rank )
+        ( bassline-rank :accessor music-bassline-rank :initarg :bassline-rank )
+        ( melodies-rank :accessor music-melodies-rank :initarg :melodies-rank )
         ( num :accessor music-num :initarg :num )
     )
 )
@@ -284,8 +285,9 @@
         :melody1 melody1-notes
         :melody2 melody2-notes
         :melody3 melody3-notes
-        :str-representation ""
         :rank 0
+        :bassline-rank 0
+        :melodies-rank 0
         :num i-num
     )
 )
@@ -342,8 +344,9 @@
             :melody1 melody1-notes
             :melody2 melody2-notes
             :melody3 melody3-notes
-            :str-representation ""
             :rank 0
+            :bassline-rank 0
+            :melodies-rank 0
             :num 1
         )
     )
@@ -436,7 +439,8 @@
             :melody1 melody1-notes
             :melody2 melody2-notes
             :melody3 melody3-notes
-            :str-representation ""
+            :bassline-rank 0
+            :melodies-rank 0
             :rank 0
             :num 1
         )
@@ -509,8 +513,9 @@
             :melody1 melody1-notes
             :melody2 melody2-notes
             :melody3 melody3-notes
-            :str-representation ""
             :rank 0
+            :bassline-rank 0
+            :melodies-rank 0
             :num 1
         )
     )
@@ -596,28 +601,6 @@
     ( float ( / total *population-size* ) )
 )
 
-; Method to calculate and display the highest-ranked music individual in a list of
-; music individuals.
-( defmethod most-fit-individual ( ( l list ) &aux max-value max-individual ) 
-    ( setf max-individual ( max-val l 0 ) )
-    ( setf max-value ( music-rank max-individual ) )
-    max-individual 
-)
-
-; Method to calculate the maximum value given a list.
-( defmethod max-val ( ( l list ) current-max )
-    (cond
-        (( null l )
-            current-max
-        )
-        (( or ( equal current-max 0 ) ( > ( music-rank ( car l ) ) ( music-rank current-max ) ) )
-            ( max-val ( cdr l ) ( car l ) )
-        )
-        (t
-            ( max-val ( cdr l ) current-max )
-        )
-    )
-)
 
 
 ; Demo to generate an initial population.
@@ -629,14 +612,6 @@
 
 ; Global variable that sets the number of individuals selected from a population.
 ( defconstant *selection-size* 4 )
-
-; Method that selects the most-fit-individual from a list of candidates.
-( defmethod select-individual ( ( p population ) 
-    &aux i candidates rn )
-    ( setf candidates ( select-individuals p ) )
-    ( setf mfi ( most-fit-individual candidates ) )
-    mfi    
-)
 
 ; Method that randomly selects a number of individuals from a population 
 ; using *selection-size*.
@@ -711,5 +686,128 @@
 )
 
 
-; for double-crossover add new selection methods based on top bassline and top melodies rankings :)
+; Method to calculate and display the highest-ranked music individual in a list of
+; music individuals.
+( defmethod most-fit-bassline ( ( selection list ) &aux max-value max-individual ) 
+    ( setf max-individual ( max-val selection 0 #'music-bassline-rank ) )
+    max-individual 
+)
 
+( defmethod most-fit-melodies ( ( selection list ) &aux max-value max-individual )
+    ( setf max-individual ( max-val selection 0 #'music-melodies-rank ) )
+    max-individual
+)
+
+; Method to calculate the maximum value given a list.
+( defmethod max-val ( ( l list ) current-max func )
+    (cond
+        (( null l )
+            current-max
+        )
+        (( or ( equal current-max 0 ) ( > ( funcall func ( car l ) ) ( funcall func current-max ) ) )
+            ( max-val ( cdr l ) ( car l ) func )
+        )
+        (t
+            ( max-val ( cdr l ) current-max func )
+        )
+    )
+)
+
+; use sort of selection for finding most fit individuals by rank / get rid of car to find second
+
+; for double-crossover add new selection methods based on top bassline and top melodies rankings :)
+( defmethod double-crossover ( ( m1 music ) ( f1 music ) ( m2 music ) ( f2 music )
+    &aux melody1-m1 melody2-m1 melody3-m2 
+         melody1-f1 melody2-f1 melody3-f2 )
+    
+    ( setf melody1-m1 ( music-melody1 m ) )
+    ( setf melody2-m1 ( music-melody2 m ) )
+    ( setf melody3-m2 ( music-melody3 m ) )
+
+    ( setf melody1-f1 ( music-melody1 f ) )
+    ( setf melody2-f1 ( music-melody2 f ) )
+    ( setf melody3-f2 ( music-melody3 f ) )
+
+    ( setf m1-crossover ( melody-crossover melody1-m1 melody1-f1 ) )
+    ( setf m2-crossover ( melody-crossover melody2-m1 melody2-f1 ) )
+    ( setf m3-crossover ( melody-crossover melody3-m2 melody3-f2 ) )
+
+    ( setf new-bassline-rank ( + ( music-bassline-rank m2 ) ( music-bassline-rank f2 ) ) )
+    ( setf new-melodies-rank ( + ( music-melodies-rank m1 ) ( music-melodies-rank f1 ) ) )
+    ( setf new-music-rank ( + new-bassline-rank new-melodies-rank ) )
+
+    ( make-instance 'music
+        :melody1 m1-crossover
+        :melody2 m2-crossover
+        :melody3 m3-crossover
+        :rank new-music-rank
+        :bassline-rank new-bassline-rank
+        :melodies-rank new-melodies-rank
+        :num 0
+    )
+
+
+)
+
+( defmethod melody-crossover ( ( m list ) ( f list ) &aux pos )
+    ( setf pos ( + 1 ( random ( length m ) ) ) )
+    ( append ( first-n m pos ) ( rest-n f pos ) )
+    
+)
+
+( defmethod first-n ( ( m list ) pos )
+    (cond
+        (( = pos 0 )
+            '()
+        )
+        (t
+            ( cons ( car m ) ( first-n ( cdr m ) ( - pos 1 ) ) )
+        )
+    )
+
+)
+
+( defmethod rest-n ( ( f list ) pos )
+    (cond
+        (( = pos 0 )
+            f
+        )
+        (t
+            ( rest-n ( cdr f ) ( - pos 1 ) )
+        )
+    )
+)
+
+;maybe add demo for most-fit-individual
+; initial pop - selection - assign-random-ranks
+; show selection
+; show most fit bassline
+; show most fit melodies
+
+; add demo for singular crossover 
+( defmethod demo--double-crossover ()
+    ( setf popu ( initial-population ) )
+    ( setf *selection-size* 4 )
+    ( setf selection ( select-individuals popu ) )
+    ( assign-random-ranks selection )
+    ; show melodies 1 & 2 for m1 and f1
+    ; show crossover of melodies 1 &2
+    ; show bassline 3 for m2 and f2
+    ; show crossover of bassline 3
+    ; do a couple times
+)
+
+( defmethod assign-random-ranks ( ( selection list ) &aux current-m )
+    ( cond
+        (( > ( length selection ) 0 )
+            ( setf current-m ( car selection ) )
+            ( setf ( music-bassline-rank current-m ) ( random 0 11 ) )
+            ( setf ( music-melodies-rank current-m ) ( random 0 11 ) )
+            ( setf ( music-rank current-m ) 
+                ( + ( music-bassline-rank current-m ) ( music-melodies-rank current-m ) )
+            )
+
+            ( assign-random-ranks ( cdr selection ) )
+        )
+    )
+)
