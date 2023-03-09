@@ -377,6 +377,8 @@
     ( display-all-melodies sample )
 )
 
+;Global variable for testing "even" mutations vs. pitch + duration mutation
+( setf *even-mutation* NIL )
 ; Method for mutating a music sample -- each melody is mutated
 
 ( defmethod mutation ( ( m music ) )
@@ -404,10 +406,18 @@
                 ( equal new-note-duration ( note-pitch note-to-change ) ) ) 
             ( mutate-note-list notes-list pitch-list duration-list )
         )
+        (( and *even-mutation* ( equal new-note-pitch ( note-pitch note-to-change ) ) )
+            ( mutate-note-list notes-list pitch-list duration-list )
+        )
+    )
+
+    (cond
+        (( not *even-mutation*)
+            ( setf ( note-duration note-to-change ) new-note-duration )
+        )
     )
 
     ( setf ( note-pitch note-to-change ) new-note-pitch )
-    ( setf ( note-duration note-to-change ) new-note-duration )
     ( setf ( note-str-representation note-to-change ) new-note-str )
 
 )
@@ -616,3 +626,90 @@
     ( display p )
     ( format t "Average fitness = ~A~%~%" ( average p ) )
 )
+
+; Global variable that sets the number of individuals selected from a population.
+( defconstant *selection-size* 4 )
+
+; Method that selects the most-fit-individual from a list of candidates.
+( defmethod select-individual ( ( p population ) 
+    &aux i candidates rn )
+    ( setf candidates ( select-individuals p ) )
+    ( setf mfi ( most-fit-individual candidates ) )
+    mfi    
+)
+
+; Method that randomly selects a number of individuals from a population 
+; using *selection-size*.
+( defmethod select-individuals ( ( p population )
+    &aux individuals candidates rn )
+    ( setf individuals ( population-individuals p ) )
+    ( setf candidates () )
+    ( dotimes ( i *selection-size* )
+        ( setf rn ( random *population-size* ) )
+        ( push ( nth rn individuals ) candidates )
+    )
+    candidates
+)
+
+; Method that handles the user-facing interactive selection process.
+; -Lets the user rank the melody pairs and basslines of the number of 
+;  music samples defined by *selection-size*.
+; -Includes error-handling for user input.
+( defmethod interactive-selection ( ( selected-samples list ) &aux melody1&2-rank bassline-rank)
+
+    (cond
+        (( null selected-samples )
+            nil
+        )
+        (t
+            ( setf current-sample ( car selected-samples ) )
+            ( easyabc-display current-sample )
+            ( format *query-io* "Melody 1 & 2 ranking (out of 10)? " )
+            ( setf melody1&2-rank ( read-line *query-io* ) )
+
+            ; ERROR-HANDLING for melody1&2-rank user input. Re-displays prompt if
+            ;  1. Input is not a number.
+            ;  2. Input is less than 0.
+            ;  3. Input is greater than 10.
+            ( loop while ( or ( not ( ignore-errors ( parse-integer melody1&2-rank ) ) ) 
+                              ( < (parse-integer melody1&2-rank) 0 ) 
+                              ( > (parse-integer melody1&2-rank) 10 ) )
+              
+               do ( format t "~%[ERROR] A ranking must be a natural number x such that -1 < x < 11.~%")
+                    ( format *query-io* "Melody 1 & 2 ranking (out of 10)? " )
+                    ( setf melody1&2-rank ( read-line *query-io* ) ) 
+            )
+            
+            
+            ( format *query-io* "Bassline ranking (out of 10)? " )
+            ( setf bassline-rank ( read-line *query-io* ) )
+
+            ; ERROR-HANDLING for bassline-rank user input. Re-displays prompt if
+            ;  1. Input is not a number.
+            ;  2. Input is less than 0.
+            ;  3. Input is greater than 10.
+            ( loop while ( or ( not ( ignore-errors ( parse-integer bassline-rank ) ) ) 
+                              ( < ( parse-integer bassline-rank ) 0 ) 
+                              ( > ( parse-integer bassline-rank ) 10 ) )
+                
+                do ( format t "~%[ERROR] A ranking must be a natural number x such that -1 < x < 11.~%")
+                    ( format *query-io* "Bassline ranking (out of 10)? " )
+                    ( setf bassline-rank ( read-line *query-io* ) )
+            )
+
+            ; Updates the ranks of the current sample.
+            ( setf ( music-bassline-rank current-sample ) ( parse-integer bassline-rank ) )
+            ( setf ( music-melodies-rank current-sample ) ( parse-integer melody1&2-rank ) )
+            ( setf ( music-rank current-sample ) ( + ( parse-integer bassline-rank ) ( parse-integer melody1&2-rank ) ) ) 
+
+            ( terpri )
+            ( interactive-selection ( cdr selected-samples ) )
+
+        )
+    )
+
+)
+
+
+; for double-crossover add new selection methods based on top bassline and top melodies rankings :)
+
