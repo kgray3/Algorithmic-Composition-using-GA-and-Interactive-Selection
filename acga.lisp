@@ -686,13 +686,15 @@
 )
 
 
-; Method to calculate and display the highest-ranked music individual in a list of
+; Method to calculate and display the highest-ranked bassline rank in a list of
 ; music individuals.
 ( defmethod most-fit-bassline ( ( selection list ) &aux max-value max-individual ) 
     ( setf max-individual ( max-val selection 0 #'music-bassline-rank ) )
     max-individual 
 )
 
+; Method to calculate and display the highest-ranked melodies rank in a list of
+; music individuals.
 ( defmethod most-fit-melodies ( ( selection list ) &aux max-value max-individual )
     ( setf max-individual ( max-val selection 0 #'music-melodies-rank ) )
     max-individual
@@ -713,20 +715,24 @@
     )
 )
 
-; use sort of selection for finding most fit individuals by rank / get rid of car to find second
-
-; for double-crossover add new selection methods based on top bassline and top melodies rankings :)
+; Double-crossover method - takes four music individuals as input:
+;    -m1 -> top melodies-rank music individual
+;    -f1 -> second best melodies-rank music individual
+;    -m2 -> top bassline-rank music individual
+;    -f2 -> second best bassline-rank music individual
+; Creates a new individual with a crossover of the two top melodies-rank music
+; individuals and a crossover ot the two top bassline-rank music individuals
 ( defmethod double-crossover ( ( m1 music ) ( f1 music ) ( m2 music ) ( f2 music )
     &aux melody1-m1 melody2-m1 melody3-m2 
          melody1-f1 melody2-f1 melody3-f2 )
     
-    ( setf melody1-m1 ( music-melody1 m ) )
-    ( setf melody2-m1 ( music-melody2 m ) )
-    ( setf melody3-m2 ( music-melody3 m ) )
+    ( setf melody1-m1 ( music-melody1 m1 ) )
+    ( setf melody2-m1 ( music-melody2 m1 ) )
+    ( setf melody3-m2 ( music-melody3 m2 ) )
 
-    ( setf melody1-f1 ( music-melody1 f ) )
-    ( setf melody2-f1 ( music-melody2 f ) )
-    ( setf melody3-f2 ( music-melody3 f ) )
+    ( setf melody1-f1 ( music-melody1 f1 ) )
+    ( setf melody2-f1 ( music-melody2 f1 ) )
+    ( setf melody3-f2 ( music-melody3 f2 ) )
 
     ( setf m1-crossover ( melody-crossover melody1-m1 melody1-f1 ) )
     ( setf m2-crossover ( melody-crossover melody2-m1 melody2-f1 ) )
@@ -749,12 +755,16 @@
 
 )
 
+; Method that performs the crossover of a single melody by
+; taking the first half of one melody notes list and putting
+; it together with the latter half of the melody notes list
 ( defmethod melody-crossover ( ( m list ) ( f list ) &aux pos )
     ( setf pos ( + 1 ( random ( length m ) ) ) )
     ( append ( first-n m pos ) ( rest-n f pos ) )
     
 )
 
+; Method that returns the first half of a given list.
 ( defmethod first-n ( ( m list ) pos )
     (cond
         (( = pos 0 )
@@ -767,6 +777,7 @@
 
 )
 
+; Method that returns the second half of a given list.
 ( defmethod rest-n ( ( f list ) pos )
     (cond
         (( = pos 0 )
@@ -778,31 +789,80 @@
     )
 )
 
-;maybe add demo for most-fit-individual
-; initial pop - selection - assign-random-ranks
-; show selection
-; show most fit bassline
-; show most fit melodies
-
-; add demo for singular crossover 
-( defmethod demo--double-crossover ()
+; Demo that showcases the most-fit-bassline and most-fit-melodies methods.
+( defmethod demo--most-fit-individual ()
     ( setf popu ( initial-population ) )
-    ( setf *selection-size* 4 )
     ( setf selection ( select-individuals popu ) )
     ( assign-random-ranks selection )
-    ; show melodies 1 & 2 for m1 and f1
-    ; show crossover of melodies 1 &2
-    ; show bassline 3 for m2 and f2
-    ; show crossover of bassline 3
-    ; do a couple times
+
+    ( format t "Selected melodies-rank...~A~%" ( mapcar #'music-melodies-rank selection ))
+    
+    ( format t "Most fit melodies-rank: ~A~%~%" ( music-melodies-rank ( most-fit-melodies selection ) ) )
+
+    ( format t "Selected bassline-rank...~A~%" ( mapcar #'music-bassline-rank selection ) )
+    
+    ( format t "Most fit bassline-rank: ~A~%" ( music-bassline-rank ( most-fit-bassline selection ) ) )
+
 )
 
+; Demo method to show the crossover performed on a single melody.
+( defmethod demo--crossover ()
+    ( setf m ( generate-melody1 ) )
+    ( setf f ( generate-melody1 ) )
+
+    ( format t "------------------MELODY CROSSOVER TEST------------------~%")
+    ( format t "Mother: ~A~%" ( display-notes-list m ) )
+    ( format t "Father: ~A~%" ( display-notes-list f ) ) 
+
+    ( format t "~% PERFORMING CROSSOVER... ~%" )
+    ( setf new-melody ( melody-crossover m f ) )
+
+    ( format t "Child: ~A~%" ( display-notes-list new-melody ) )
+)
+
+; Method for demoing double crossover.
+( defmethod demo--double-crossover ()
+    ( setf popu ( initial-population ) )
+    ( setf selection ( select-individuals popu ) )
+    ( assign-random-ranks selection )
+    ( setf melodies-m ( most-fit-melodies selection ) )
+    ( setf melodies-f ( most-fit-melodies ( remove melodies-m selection ) ) )
+    ( format t "------------------MUSIC CROSSOVER TEST------------------~%")
+    ( format t "Mother: ~%" )
+    ( display-melody1&2 melodies-m ) 
+    ( format t "Father: ~%" )
+    ( display-melody1&2 melodies-f ) 
+    
+
+
+    ( setf bassline-m ( most-fit-bassline selection ) )
+    ( setf bassline-f ( most-fit-bassline ( remove bassline-m selection ) ) )
+
+    ( setf new-sample ( double-crossover melodies-m melodies-f bassline-m bassline-f ) )
+
+    ( format t "Child: ~%" )
+    ( display-melody1&2 new-sample )
+
+    ( format t "Mother: ~%" )
+    ( display-melody3 bassline-m )
+    ( format t "Father: ~%" )
+    ( display-melody3 bassline-f )
+    ( format t "Child: ~%" )
+    ( display-melody3 new-sample ) 
+
+    ( easyabc-display new-sample )
+
+)
+
+
+; Demo helper method that randomly assigns ranks to a list of music individuals
+; Meant to simulate interactive selection without me having to interact :)
 ( defmethod assign-random-ranks ( ( selection list ) &aux current-m )
     ( cond
         (( > ( length selection ) 0 )
             ( setf current-m ( car selection ) )
-            ( setf ( music-bassline-rank current-m ) ( random 0 11 ) )
-            ( setf ( music-melodies-rank current-m ) ( random 0 11 ) )
+            ( setf ( music-bassline-rank current-m ) ( random 11 ) )
+            ( setf ( music-melodies-rank current-m ) ( random 11 ) )
             ( setf ( music-rank current-m ) 
                 ( + ( music-bassline-rank current-m ) ( music-melodies-rank current-m ) )
             )
@@ -811,3 +871,5 @@
         )
     )
 )
+
+; use sort of selection for finding most fit individuals by rank / get rid of car to find second
