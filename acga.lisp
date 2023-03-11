@@ -757,34 +757,48 @@
 
 ; Method that performs the crossover of a single melody by
 ; taking the first half of one melody notes list and putting
-; it together with the latter half of the melody notes list
-( defmethod melody-crossover ( ( m list ) ( f list ) &aux pos )
-    ( setf pos ( + 1 ( random ( length m ) ) ) )
-    ( append ( first-n m pos ) ( rest-n f pos ) )
+; it together with the latter half of the melody notes list based
+; on a randomly generated duration within *beat-total*.
+( defmethod melody-crossover ( ( m list ) ( f list ) &aux dpos )
+    ( setf dpos ( + 1 ( random *beat-total* ) ) )
+
+    (setf result ( append ( first-n m dpos ) ( rest-n f dpos ) ))
+
+    (cond
+        (( = ( sum ( mapcar #'note-duration result ) ) *beat-total* )
+            result
+        )
+        (t
+            ( melody-crossover m f )
+        )
+    )
+    
     
 )
 
-; Method that returns the first half of a given list.
-( defmethod first-n ( ( m list ) pos )
+; Method that returns the first half of a given list
+; based on duration.
+( defmethod first-n ( ( m list ) dpos )
     (cond
-        (( = pos 0 )
+        (( <= dpos 0 )
             '()
         )
         (t
-            ( cons ( car m ) ( first-n ( cdr m ) ( - pos 1 ) ) )
+            ( cons ( car m ) ( first-n ( cdr m ) ( - dpos ( note-duration (car m ) ) ) ) )
         )
     )
 
 )
 
-; Method that returns the second half of a given list.
-( defmethod rest-n ( ( f list ) pos )
+; Method that returns the second half of a given list
+; based on input duration.
+( defmethod rest-n ( ( f list ) dpos )
     (cond
-        (( = pos 0 )
+        (( <= dpos 0 )
             f
         )
         (t
-            ( rest-n ( cdr f ) ( - pos 1 ) )
+            ( rest-n ( cdr f ) ( - dpos ( note-duration ( car f ) ) ) )
         )
     )
 )
