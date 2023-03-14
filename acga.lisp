@@ -2,7 +2,7 @@
 ; Hybridized constraint system and genetic algorithm for
 ; user-interactive algorithmic composition.
 
-( setf *beat-total* 8 )
+( setf *beat-total* 24 )
 ; Global var for current constraint array we are woring with
 ( setf *constraint-arr* '() )
 
@@ -20,7 +20,7 @@
 ; Method to generate melody2 as either a harmonization,
 ; permutation, or random melody
 ( defmethod generate-melody2 ( ( m1-notes list ) )
-    ( setf choice ( random 3 ) )
+    ( setf choice ( random 5 ) )
     (cond
         (( = choice 0 )
             ( create-harmonization m1-notes )
@@ -33,7 +33,60 @@
             ;random melody
             ( generate-melody1 )
         )
+        (( = choice 3 )
+            ( generate-bassline )
+        )
+        (( = choice 4 )
+            ( create-octave-harmonization m1-notes )
+        )
     )
+
+)
+
+; Method to create a harmonization of melody1 by using the same notes/duration
+; in a different octave from melody1
+( defmethod create-octave-harmonization ( ( notes-list list ) )
+    (cond
+        (( = 0 ( length notes-list ) )
+            '()
+        )
+        (t
+            ( setf new-octave ( car ( remove ( note-octave ( car notes-list ) ) *melody-octaves* ) ) )
+            ( setf new-note
+                ( make-instance 'note
+                    :pitch ( note-pitch ( car notes-list ) )
+                    :duration ( note-duration ( car notes-list ) )
+                    :octave new-octave
+                    :str-representation ( generate-str-representation 
+                                            ( note-pitch ( car notes-list) )
+                                            ( note-duration ( car notes-list ) )
+                                            new-octave    
+                                        )
+                )
+            )
+            ( cons new-note ( create-octave-harmonization ( cdr notes-list ) ) )
+        )
+    )
+)
+
+; Method to demo the create-octave-harmonization method.
+( defmethod demo--octave-harmonization ()
+    ( setf melody1 ( generate-melody1 ) )
+    ( setf melody2 ( create-octave-harmonization melody1 ) )
+
+    ( setf m 
+        ( make-instance 'music 
+            :melody1 melody1
+            :melody2 melody2
+            :rank 0
+            :melody1-rank 0
+            :melody2-rank 0
+            :num 2
+        )
+    
+    )
+
+    ( easyabc-display m )
 
 )
 
@@ -97,8 +150,52 @@
 ( defmethod generate-bassline ()
     ( setf *constraint-arr* *bassline-durations* )
     ( setf dlist ( generate-durations '() ) )
-    ( setf plist ( generate-pitches dlist ) )
+    ( setf plist ( generate-pitches-stepwise dlist ( select-random-arr-element *CMAJOR* ) ) )
     ( generate-notes dlist plist '() ( select-random-arr-element *bassline-octave* ) )
+)
+
+; Method that generates a list of pitches based on the
+; length of duration-list and stepwise movements
+( defmethod generate-pitches-stepwise ( ( duration-list list ) previous 
+    &aux stepwise-l ele previous-position )
+    ( setf stepwise-l '( 0 1 1 2 ) )
+    ( setf ele ( select-random-arr-element stepwise-l ) )
+    ( setf previous-position ( position previous *CMAJOR* ) )
+    ( cond 
+        (( = ( length duration-list) 0 )
+            '()
+        )
+        (( > ( + previous-position ele ) ( - ( length *CMAJOR* ) 1) )
+            ( cons ( nth ( - previous-position ele ) *CMAJOR* ) 
+                ( generate-pitches-stepwise ( cdr duration-list ) ( nth ( - previous-position ele ) *CMAJOR* ) ) )
+        )
+        (t
+            ( cons ( nth ( + previous-position ele ) *CMAJOR* ) 
+                ( generate-pitches-stepwise ( cdr duration-list ) ( nth ( + previous-position ele ) *CMAJOR* ) ) )
+        )
+
+    )
+
+)
+
+; Demo method for generating a bassline with stepwise motion.
+( defmethod demo--stepwise-bassline ()
+    ( setf melody1 ( generate-melody1 ) )
+    ( setf melody2 ( generate-bassline ) )
+
+    ( setf m 
+        ( make-instance 'music 
+            :melody1 melody1
+            :melody2 melody2
+            :rank 0
+            :melody1-rank 0
+            :melody2-rank 0
+            :num 3
+        )
+    
+    )
+
+    ( easyabc-display m )
 )
 
 
@@ -236,26 +333,26 @@
     ;Iteration 1
     ( setf melody1-notes ( generate-melody1 ) )
     ( setf melody2-notes ( generate-melody2 melody1-notes ) )
-    ( setf melody3-notes ( generate-bassline ) )
+    ;( setf melody3-notes ( generate-bassline ) )
     ( format t "Melody 1: ~A~%" ( display-notes-list melody1-notes ) )
     ( format t "Melody 2: ~A~%" ( display-notes-list melody2-notes ) )
-    ( format t "Melody 3: ~A~%" ( display-notes-list melody3-notes ) )
+    ;( format t "Melody 3: ~A~%" ( display-notes-list melody3-notes ) )
     (terpri)
     ;Iteration 2
     ( setf melody1-notes ( generate-melody1 ) )
     ( setf melody2-notes ( generate-melody2 melody1-notes ) )
-    ( setf melody3-notes ( generate-bassline ) )
+    ;( setf melody3-notes ( generate-bassline ) )
     ( format t "Melody 1: ~A~%" ( display-notes-list melody1-notes ) )
     ( format t "Melody 2: ~A~%" ( display-notes-list melody2-notes ) )
-    ( format t "Melody 3: ~A~%" ( display-notes-list melody3-notes ) )
+    ;( format t "Melody 3: ~A~%" ( display-notes-list melody3-notes ) )
     (terpri)
     ;Iteration 3
     ( setf melody1-notes ( generate-melody1 ) )
     ( setf melody2-notes ( generate-melody2 melody1-notes ) )
-    ( setf melody3-notes ( generate-bassline ) )
+    ;( setf melody3-notes ( generate-bassline ) )
     ( format t "Melody 1: ~A~%" ( display-notes-list melody1-notes ) )
     ( format t "Melody 2: ~A~%" ( display-notes-list melody2-notes ) )
-    ( format t "Melody 3: ~A~%" ( display-notes-list melody3-notes ) )
+    ;( format t "Melody 3: ~A~%" ( display-notes-list melody3-notes ) )
 )
 
 ; Class for music representation
@@ -266,10 +363,10 @@
     (
         ( melody1 :accessor music-melody1 :initarg :melody1 )
         ( melody2 :accessor music-melody2 :initarg :melody2 )
-        ( melody3 :accessor music-melody3 :initarg :melody3 )
+        ;( melody3 :accessor music-melody3 :initarg :melody3 )
         ( rank :accessor music-rank :initarg :rank )
-        ( bassline-rank :accessor music-bassline-rank :initarg :bassline-rank )
-        ( melodies-rank :accessor music-melodies-rank :initarg :melodies-rank )
+        ( melody1-rank :accessor music-melody1-rank :initarg :melody1-rank )
+        ( melody2-rank :accessor music-melody2-rank :initarg :melody2-rank )
         ( num :accessor music-num :initarg :num )
     )
 )
@@ -279,15 +376,15 @@
 ( defmethod generate-music-sample ( i-num )
     ( setf melody1-notes ( generate-melody1 ) )
     ( setf melody2-notes ( generate-melody2 melody1-notes ) )
-    ( setf melody3-notes ( generate-bassline ) )
+    ;( setf melody3-notes ( generate-bassline ) )
 
     ( make-instance 'music
         :melody1 melody1-notes
         :melody2 melody2-notes
-        :melody3 melody3-notes
+        ;:melody3 melody3-notes
         :rank 0
-        :bassline-rank 0
-        :melodies-rank 0
+        :melody1-rank 0
+        :melody2-rank 0
         :num i-num
     )
 )
@@ -303,33 +400,33 @@
 )
 
 ; Method that displays melody3 of a music sample
-( defmethod display-melody3 ( (m music) )
-    ( format t "~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
-)
+;( defmethod display-melody3 ( (m music) )
+;    ( format t "~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
+;)
 
 ; Method that displays melody1 and melody2 of a music sample
-( defmethod display-melody1&2 ( (m music) )
-    ( format t "Melody 1: ~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
-    ( format t "Melody 2: ~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
-)
+;( defmethod display-melody1&2 ( (m music) )
+;    ( format t "Melody 1: ~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
+;    ( format t "Melody 2: ~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
+;)
 
 ; Method that displays melody1 and melody3 of a music sample
-( defmethod display-melody1&3 ( ( m music ) )
-    ( format t "Melody 1: ~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
-    ( format t "Melody 3: ~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
-)
+;( defmethod display-melody1&3 ( ( m music ) )
+;    ( format t "Melody 1: ~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
+;    ( format t "Melody 3: ~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
+;)
 
 ; Method that displays melody2 and melody3 of a music sample
-( defmethod display-melody2&3 ( ( m music ) )
-    ( format t "Melody 2: ~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
-    ( format t "Melody 3: ~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
-)
+;( defmethod display-melody2&3 ( ( m music ) )
+;    ( format t "Melody 2: ~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
+;    ( format t "Melody 3: ~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
+;)
 
 ; Method that displays all melodies of a music sample
 ( defmethod display-all-melodies ( ( m music ) )
     ( format t "Melody 1: ~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
     ( format t "Melody 2: ~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
-    ( format t "Melody 3: ~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
+    ;( format t "Melody 3: ~{~a~^ ~}~%" ( display-notes-list ( music-melody3 m ) ) )
     ( terpri )
 )
 
@@ -337,16 +434,16 @@
 ( defmethod demo--music-class ()
     ( setf melody1-notes ( generate-melody1 ) )
     ( setf melody2-notes ( generate-melody2 melody1-notes ) )
-    ( setf melody3-notes ( generate-bassline ) )
+    ;( setf melody3-notes ( generate-bassline ) )
 
     ( setf sample 
         ( make-instance 'music
             :melody1 melody1-notes
             :melody2 melody2-notes
-            :melody3 melody3-notes
+            ;:melody3 melody3-notes
             :rank 0
-            :bassline-rank 0
-            :melodies-rank 0
+            :melody1-rank 0
+            :melody2-rank 0
             :num 1
         )
     )
@@ -359,22 +456,22 @@
     (terpri)
     ( display-melody2 sample )
     (terpri)
-    ( print "----------------DISPLAY MELODY3 TEST----------------")
-    (terpri)
-    ( display-melody3 sample )
-    (terpri)
-    ( print "----------------DISPLAY MELODIES 1&2 TEST----------------")
-    (terpri)
-    ( display-melody1&2 sample )
-    (terpri)
-    ( print "----------------DISPLAY MELODIES 1&3 TEST----------------")
-    (terpri)
-    ( display-melody1&3 sample )
-    (terpri)
-    ( print "----------------DISPLAY MELODIES 2&3 TEST----------------")
-    (terpri)
-    ( display-melody2&3 sample )
-    (terpri)
+    ;( print "----------------DISPLAY MELODY3 TEST----------------")
+    ;(terpri)
+    ;( display-melody3 sample )
+    ;(terpri)
+    ;( print "----------------DISPLAY MELODIES 1&2 TEST----------------")
+    ;(terpri)
+    ;( display-melody1&2 sample )
+    ;(terpri)
+    ;( print "----------------DISPLAY MELODIES 1&3 TEST----------------")
+    ;(terpri)
+    ;( display-melody1&3 sample )
+    ;(terpri)
+    ;( print "----------------DISPLAY MELODIES 2&3 TEST----------------")
+    ;(terpri)
+    ;( display-melody2&3 sample )
+    ;(terpri)
     ( print "----------------DISPLAY ALL MELODIES TEST----------------")
     (terpri)
     ( display-all-melodies sample )
@@ -387,11 +484,11 @@
 ( defmethod mutation ( ( m music ) )
     ( setf melody1-list ( music-melody1 m ) )
     ( setf melody2-list ( music-melody2 m ) )
-    ( setf melody3-list ( music-melody3 m ) )
+    ;( setf melody3-list ( music-melody3 m ) )
 
     ( mutate-note-list melody1-list *CMAJOR* *melody-durations* )
-    ( mutate-note-list melody2-list *CMAJOR* *melody-durations* )
-    ( mutate-note-list melody3-list *CMAJOR* *bassline-durations* )
+    ( mutate-note-list melody2-list *CMAJOR* *constraint-arr* )
+    ;( mutate-note-list melody3-list *CMAJOR* *bassline-durations* )
 
 )
 
@@ -432,15 +529,15 @@
 ( defmethod demo--mutation ()
     ( setf melody1-notes ( generate-melody1 ) )
     ( setf melody2-notes ( generate-melody2 melody1-notes ) )
-    ( setf melody3-notes ( generate-bassline ) )
+    ;( setf melody3-notes ( generate-bassline ) )
 
     ( setf sample 
         ( make-instance 'music
             :melody1 melody1-notes
             :melody2 melody2-notes
-            :melody3 melody3-notes
-            :bassline-rank 0
-            :melodies-rank 0
+            ;:melody3 melody3-notes
+            :melody1-rank 0
+            :melody2-rank 0
             :rank 0
             :num 1
         )
@@ -489,8 +586,7 @@
     ( format t "Q:1/4=120~%")
     ( format t "V:S clef=treble name=S~%" )
     ( format t "V:A clef=treble name=A~%" )
-    ( format t "V:T clef=treble name=T~%" )
-    ( format t "%%score [ ( S ) ( A ) ( T ) ]~%")
+    ( format t "%%score [ ( S ) ( A ) ]~%")
     ( format t "K:C~%" )
     ( format t "V:S~%" )
     ; set instrument for midi
@@ -498,24 +594,25 @@
     ( display-melody1 sample )
     ( format t "V:A~%" )
     ( display-melody2 sample )
-    ( format t "V:T~%" )
-    ( display-melody3 sample )
+    ;( format t "V:T~%" )
+    ;( format t "%%MIDI program 4~%" )
+    ;( display-melody3 sample )
 )
 
 ; Demo method to test the EasyABC display
 ( defmethod demo--display-individual ()
     ( setf melody1-notes ( generate-melody1 ) )
     ( setf melody2-notes ( generate-melody2 melody1-notes ) )
-    ( setf melody3-notes ( generate-bassline ) )
+    ;( setf melody3-notes ( generate-bassline ) )
 
     ( setf sample 
         ( make-instance 'music
             :melody1 melody1-notes
             :melody2 melody2-notes
-            :melody3 melody3-notes
+            ;:melody3 melody3-notes
             :rank 0
-            :bassline-rank 0
-            :melodies-rank 0
+            :melody1-rank 0
+            :melody2-rank 0
             :num 1
         )
     )
@@ -532,7 +629,7 @@
 ( defconstant *population-size* 100 )
 
 ; Global variable for the size of selection.
-( defconstant *selection-size* 4 )
+( setf *selection-size* 3 )
 
 ; Population Class -- consists of a list of music individuals and generation number.
 ( defclass population ()
@@ -610,8 +707,7 @@
     ( format t "Average fitness = ~A~%~%" ( average p ) )
 )
 
-; Global variable that sets the number of individuals selected from a population.
-( defconstant *selection-size* 4 )
+
 
 ; Method that randomly selects a number of individuals from a population 
 ; using *selection-size*.
@@ -630,7 +726,7 @@
 ; -Lets the user rank the melody pairs and basslines of the number of 
 ;  music samples defined by *selection-size*.
 ; -Includes error-handling for user input.
-( defmethod interactive-selection ( ( selected-samples list ) &aux melody1&2-rank bassline-rank)
+( defmethod interactive-selection ( ( selected-samples list ) &aux melody1-rank melody2-rank)
 
     (cond
         (( null selected-samples )
@@ -639,43 +735,43 @@
         (t
             ( setf current-sample ( car selected-samples ) )
             ( easyabc-display current-sample )
-            ( format *query-io* "Melody 1 & 2 ranking (out of 10)? " )
-            ( setf melody1&2-rank ( read-line *query-io* ) )
+            ( format *query-io* "Melody 1 ranking (out of 10)? " )
+            ( setf melody1-rank ( read-line *query-io* ) )
 
             ; ERROR-HANDLING for melody1&2-rank user input. Re-displays prompt if
             ;  1. Input is not a number.
             ;  2. Input is less than 0.
             ;  3. Input is greater than 10.
-            ( loop while ( or ( not ( ignore-errors ( parse-integer melody1&2-rank ) ) ) 
-                              ( < (parse-integer melody1&2-rank) 0 ) 
-                              ( > (parse-integer melody1&2-rank) 10 ) )
+            ( loop while ( or ( not ( ignore-errors ( parse-integer melody1-rank ) ) ) 
+                              ( < (parse-integer melody1-rank) 0 ) 
+                              ( > (parse-integer melody1-rank) 10 ) )
               
                do ( format t "~%[ERROR] A ranking must be a natural number x such that -1 < x < 11.~%")
-                    ( format *query-io* "Melody 1 & 2 ranking (out of 10)? " )
-                    ( setf melody1&2-rank ( read-line *query-io* ) ) 
+                    ( format *query-io* "Melody 1 ranking (out of 10)? " )
+                    ( setf melody1-rank ( read-line *query-io* ) ) 
             )
             
             
-            ( format *query-io* "Bassline ranking (out of 10)? " )
-            ( setf bassline-rank ( read-line *query-io* ) )
+            ( format *query-io* "Melody 2 ranking (out of 10)? " )
+            ( setf melody2-rank ( read-line *query-io* ) )
 
             ; ERROR-HANDLING for bassline-rank user input. Re-displays prompt if
             ;  1. Input is not a number.
             ;  2. Input is less than 0.
             ;  3. Input is greater than 10.
-            ( loop while ( or ( not ( ignore-errors ( parse-integer bassline-rank ) ) ) 
-                              ( < ( parse-integer bassline-rank ) 0 ) 
-                              ( > ( parse-integer bassline-rank ) 10 ) )
+            ( loop while ( or ( not ( ignore-errors ( parse-integer melody2-rank ) ) ) 
+                              ( < ( parse-integer melody2-rank ) 0 ) 
+                              ( > ( parse-integer melody2-rank ) 10 ) )
                 
                 do ( format t "~%[ERROR] A ranking must be a natural number x such that -1 < x < 11.~%")
-                    ( format *query-io* "Bassline ranking (out of 10)? " )
-                    ( setf bassline-rank ( read-line *query-io* ) )
+                    ( format *query-io* "Melody 2 ranking (out of 10)? " )
+                    ( setf melody2-rank ( read-line *query-io* ) )
             )
 
             ; Updates the ranks of the current sample.
-            ( setf ( music-bassline-rank current-sample ) ( parse-integer bassline-rank ) )
-            ( setf ( music-melodies-rank current-sample ) ( parse-integer melody1&2-rank ) )
-            ( setf ( music-rank current-sample ) ( + ( parse-integer bassline-rank ) ( parse-integer melody1&2-rank ) ) ) 
+            ( setf ( music-melody2-rank current-sample ) ( parse-integer melody2-rank ) )
+            ( setf ( music-melody1-rank current-sample ) ( parse-integer melody1-rank ) )
+            ( setf ( music-rank current-sample ) ( + ( parse-integer melody2-rank ) ( parse-integer melody1-rank ) ) ) 
 
             ( terpri )
             ( interactive-selection ( cdr selected-samples ) )
@@ -688,15 +784,15 @@
 
 ; Method to calculate and display the highest-ranked bassline rank in a list of
 ; music individuals.
-( defmethod most-fit-bassline ( ( selection list ) &aux max-value max-individual ) 
-    ( setf max-individual ( max-val selection 0 #'music-bassline-rank ) )
+( defmethod most-fit-melody2 ( ( selection list ) &aux max-value max-individual ) 
+    ( setf max-individual ( max-val selection 0 #'music-melody2-rank ) )
     max-individual 
 )
 
 ; Method to calculate and display the highest-ranked melodies rank in a list of
 ; music individuals.
-( defmethod most-fit-melodies ( ( selection list ) &aux max-value max-individual )
-    ( setf max-individual ( max-val selection 0 #'music-melodies-rank ) )
+( defmethod most-fit-melody1 ( ( selection list ) &aux max-value max-individual )
+    ( setf max-individual ( max-val selection 0 #'music-melody1-rank ) )
     max-individual
 )
 
@@ -716,39 +812,36 @@
 )
 
 ; Double-crossover method - takes four music individuals as input:
-;    -m1 -> top melodies-rank music individual
-;    -f1 -> second best melodies-rank music individual
-;    -m2 -> top bassline-rank music individual
-;    -f2 -> second best bassline-rank music individual
-; Creates a new individual with a crossover of the two top melodies-rank music
-; individuals and a crossover ot the two top bassline-rank music individuals
+;    -m1 -> top melody1-rank music individual
+;    -f1 -> second best melody1-rank music individual
+;    -m2 -> top melody2-rank music individual
+;    -f2 -> second best melody2-rank music individual
+; Creates a new individual with a crossover of the two top melody1-rank music
+; individuals and a crossover ot the two top melody2-rank music individuals
 ( defmethod double-crossover ( ( m1 music ) ( f1 music ) ( m2 music ) ( f2 music )
-    &aux melody1-m1 melody2-m1 melody3-m2 
-         melody1-f1 melody2-f1 melody3-f2 )
+    &aux melody1-m1 melody2-m2 
+         melody1-f1 melody2-f2 )
     
     ( setf melody1-m1 ( music-melody1 m1 ) )
-    ( setf melody2-m1 ( music-melody2 m1 ) )
-    ( setf melody3-m2 ( music-melody3 m2 ) )
+    ( setf melody2-m2 ( music-melody2 m2 ) )
 
     ( setf melody1-f1 ( music-melody1 f1 ) )
-    ( setf melody2-f1 ( music-melody2 f1 ) )
-    ( setf melody3-f2 ( music-melody3 f2 ) )
+    ( setf melody2-f2 ( music-melody2 f2 ) )
 
     ( setf m1-crossover ( melody-crossover melody1-m1 melody1-f1 ) )
-    ( setf m2-crossover ( melody-crossover melody2-m1 melody2-f1 ) )
-    ( setf m3-crossover ( melody-crossover melody3-m2 melody3-f2 ) )
+    ( setf m2-crossover ( melody-crossover melody2-m2 melody2-f2 ) )
 
-    ( setf new-bassline-rank ( + ( music-bassline-rank m2 ) ( music-bassline-rank f2 ) ) )
-    ( setf new-melodies-rank ( + ( music-melodies-rank m1 ) ( music-melodies-rank f1 ) ) )
-    ( setf new-music-rank ( + new-bassline-rank new-melodies-rank ) )
+    ( setf new-melody2-rank ( + ( music-melody2-rank m2 ) ( music-melody2-rank f2 ) ) )
+    ( setf new-melody1-rank ( + ( music-melody1-rank m1 ) ( music-melody1-rank f1 ) ) )
+    ( setf new-music-rank ( + new-melody2-rank new-melody1-rank ) )
 
     ( make-instance 'music
         :melody1 m1-crossover
         :melody2 m2-crossover
-        :melody3 m3-crossover
+        ;:melody3 m3-crossover
         :rank new-music-rank
-        :bassline-rank new-bassline-rank
-        :melodies-rank new-melodies-rank
+        :melody2-rank new-melody2-rank
+        :melody1-rank new-melody1-rank
         :num 0
     )
 
@@ -809,13 +902,13 @@
     ( setf selection ( select-individuals popu ) )
     ( assign-random-ranks selection )
 
-    ( format t "Selected melodies-rank...~A~%" ( mapcar #'music-melodies-rank selection ))
+    ( format t "Selected melody1-rank...~A~%" ( mapcar #'music-melody1-rank selection ))
     
-    ( format t "Most fit melodies-rank: ~A~%~%" ( music-melodies-rank ( most-fit-melodies selection ) ) )
+    ( format t "Most fit melody1-rank: ~A~%~%" ( music-melody1-rank ( most-fit-melody1 selection ) ) )
 
-    ( format t "Selected bassline-rank...~A~%" ( mapcar #'music-bassline-rank selection ) )
+    ( format t "Selected melody2-rank...~A~%" ( mapcar #'music-melody2-rank selection ) )
     
-    ( format t "Most fit bassline-rank: ~A~%" ( music-bassline-rank ( most-fit-bassline selection ) ) )
+    ( format t "Most fit melody2-rank: ~A~%" ( music-melody2-rank ( most-fit-melody2 selection ) ) )
 
 )
 
@@ -839,30 +932,30 @@
     ( setf popu ( initial-population ) )
     ( setf selection ( select-individuals popu ) )
     ( assign-random-ranks selection )
-    ( setf melodies-m ( most-fit-melodies selection ) )
-    ( setf melodies-f ( most-fit-melodies ( remove melodies-m selection ) ) )
+    ( setf melody1-m ( most-fit-melody1 selection ) )
+    ( setf melody1-f ( most-fit-melody2 ( remove melody1-m selection ) ) )
     ( format t "------------------MUSIC CROSSOVER TEST------------------~%")
     ( format t "Mother: ~%" )
-    ( display-melody1&2 melodies-m ) 
+    ( display-melody1 melody1-m ) 
     ( format t "Father: ~%" )
-    ( display-melody1&2 melodies-f ) 
+    ( display-melody1 melody1-f ) 
     
 
 
-    ( setf bassline-m ( most-fit-bassline selection ) )
-    ( setf bassline-f ( most-fit-bassline ( remove bassline-m selection ) ) )
+    ( setf melody2-m ( most-fit-melody2 selection ) )
+    ( setf melody2-f ( most-fit-melody2 ( remove melody2-m selection ) ) )
 
-    ( setf new-sample ( double-crossover melodies-m melodies-f bassline-m bassline-f ) )
+    ( setf new-sample ( double-crossover melody1-m melody1-f melody2-m melody2-f ) )
 
     ( format t "Child: ~%" )
-    ( display-melody1&2 new-sample )
+    ( display-melody1 new-sample )
 
     ( format t "Mother: ~%" )
-    ( display-melody3 bassline-m )
+    ( display-melody2 melody2-m )
     ( format t "Father: ~%" )
-    ( display-melody3 bassline-f )
+    ( display-melody2 melody2-f )
     ( format t "Child: ~%" )
-    ( display-melody3 new-sample ) 
+    ( display-melody2 new-sample ) 
 
     ( easyabc-display new-sample )
 
@@ -875,10 +968,10 @@
     ( cond
         (( > ( length selection ) 0 )
             ( setf current-m ( car selection ) )
-            ( setf ( music-bassline-rank current-m ) ( random 11 ) )
-            ( setf ( music-melodies-rank current-m ) ( random 11 ) )
+            ( setf ( music-melody2-rank current-m ) ( random 11 ) )
+            ( setf ( music-melody1-rank current-m ) ( random 11 ) )
             ( setf ( music-rank current-m ) 
-                ( + ( music-bassline-rank current-m ) ( music-melodies-rank current-m ) )
+                ( + ( music-melody2-rank current-m ) ( music-melody1-rank current-m ) )
             )
 
             ( assign-random-ranks ( cdr selection ) )
@@ -887,3 +980,9 @@
 )
 
 ; use sort of selection for finding most fit individuals by rank / get rid of car to find second
+
+( defmethod demo--interactive-selection ()
+    ( setf popu ( initial-population ) )
+    ( setf selection ( select-individuals popu ) )
+    ( interactive-selection selection )
+)
