@@ -641,7 +641,7 @@
 
 ; Calculates the size of a population.
 ( defmethod size ( ( p population ) )
-    ( length ( population-indiviudals p ) )
+    ( length ( population-individuals p ) )
 )
 
 ; Displays the population in terms of salient information for the developer.
@@ -927,6 +927,7 @@
     ( format t "Child: ~A~%" ( display-notes-list new-melody ) )
 )
 
+
 ; Method for demoing double crossover.
 ( defmethod demo--double-crossover ()
     ( setf popu ( initial-population ) )
@@ -961,7 +962,6 @@
 
 )
 
-
 ; Demo helper method that randomly assigns ranks to a list of music individuals
 ; Meant to simulate interactive selection without me having to interact :)
 ( defmethod assign-random-ranks ( ( selection list ) &aux current-m )
@@ -985,4 +985,159 @@
     ( setf popu ( initial-population ) )
     ( setf selection ( select-individuals popu ) )
     ( interactive-selection selection )
+)
+
+; ----------Population Mutation Methods----------
+
+; percentage of mutation (set at 50%)
+( defconstant *pc-m* 50 )
+
+; Mutates music samples based on *pc-m* probability
+( defmethod maybe-mutate ( ( m music ) )
+
+    ( cond 
+        (( <= ( + 1 ( random 100 ) ) *pc-m* )
+            ( mutation m )
+            t
+        )
+        (t
+            nil
+        )
+    )
+)
+
+; Demo method for maybe-mutate. Shows whether a music individual
+; mutates or not by denoting melody1 with an * for mutation.
+; Only Melody1 is shown because mutation affects both melodies,
+; so for demo purposes we can show one.
+( defmethod demo--maybe-mutate ()
+    ( setf m ( generate-music-sample ( random 100 ) ) )
+    ( display-melody1 m )
+    ( terpri )
+    ( dotimes ( x 20 )
+        ( display-melody1 m )
+        ( if ( maybe-mutate m ) ( princ " *" ) )
+        ( terpri )
+        
+    )
+)
+
+;------------- COPY CODE -------------
+( setf *copy-demo* nil )
+
+; Constant denoting percentage of copies
+( defconstant *pc-c* 40 )
+
+; Method to perform the number of copies as directed by
+; the number assigned to *pc-c*
+( defmethod perform-copies ( ( cp population ) ( np population ) )
+    ( dotimes ( i ( nr-copies ) )
+        ( perform-one-copy cp np )
+    )
+)
+
+; Method to calculated the number of copies
+; using the *population-size*
+( defmethod nr-copies ()
+    ( * ( / *pc-c* 100 ) *population-size* )
+)
+
+; Method to select the most fit individual from 
+; a selection
+( defmethod select-individual ( ( p population ) 
+    &aux i candidates rn )
+    ( setf candidates ( select-individuals p ) )
+    ( setf mfi ( most-fit-music-sample candidates ) )
+    mfi
+)
+
+; Method to calculate the most fit music sample
+; based on total rank (melody1-rank + melody2-rank)
+( defmethod most-fit-music-sample ( ( selection list ) &aux max-value max-individual )
+    ( setf max-individual ( max-val selection 0 #'music-rank ) )
+    max-individual
+)
+
+; Method to display a music sample with its melodies and rankings
+( defmethod display-music-sample ( ( m music ) )
+    ( format t "------------------MUSIC SAMPLE ~A------------------~%" ( music-num m ))
+    ( display-all-melodies m )
+    ( format t "Total Rank: ~A~%" ( music-rank m ) )
+    ( format t "Melody1 Rank: ~A~%" ( music-melody1-rank m ) )
+    ( format t "Melody2 Rank: ~A~%" ( music-melody2-rank m ) )
+    ( format t "--------------------------------------------------~%")
+)
+
+; Method to copy a music sample to a new object
+( defmethod copy-music-sample ( n ( m music ) )
+    ( make-instance 'music  
+        :melody1 ( music-melody1 m )
+        :melody2 ( music-melody2 m )
+        :melody1-rank ( music-melody1-rank m )
+        :melody2-rank ( music-melody2-rank m )
+        :rank ( music-rank m )
+        :num n
+    )
+
+)
+
+; Method to demo copy-music-sample
+( defmethod demo--copy-music-sample ( &aux m )
+    ( setf m ( generate-music-sample 1 ) )
+    ( display-music-sample m )
+
+    ( setf copy ( copy-music-sample 2 m ) )
+    ( display-music-sample copy )
+)
+
+; Method to perform one copy
+;  1. Selects a music sample
+;  2. Maybe mutates
+;  3. Copies music sample to new music sample obj
+;  4. Appends to new population
+( defmethod perform-one-copy ( ( cp population ) ( np population ) 
+    &aux x m mm new-i )
+    ( setf m ( select-individual cp ) )
+    ( if *copy-demo* ( format t "Selected individual = ~% ") )
+    ( if *copy-demo* ( display-music-sample m ) )
+
+    ( maybe-mutate m )
+    ( if *copy-demo* ( format t "Possibly mutated individual = ~&" ) )
+    ( if *copy-demo* ( display-music-sample m ) )
+    ( setf ( music-num m) ( + 1 ( size np ) ) )
+    ( if *copy-demo* ( format t "Renumbered individual = ~&" ) )
+    ( if *copy-demo* ( display-music-sample m) )
+
+    ( setf new-i ( copy-music-sample ( + 1 ( size np ) ) m ) )
+
+    ( setf
+        ( population-individuals np )
+        ( append ( population-individuals np ) ( list new-i ) )
+    )
+)
+
+; Method to instantiate an empty population
+( defmethod empty-population ( ( cp population ) &aux np )
+    ( setf np ( make-instance 'population ) )
+    ( setf ( population-individuals np ) () )
+    ( setf ( population-generation np ) ( + 1 ( population-generation cp ) ) )
+    np
+)
+
+; Method to demo perform-copies
+( defmethod demo--perform-copies ( &aux cp np )
+    ( setf cp ( initial-population ) )
+    ( assign-random-ranks ( population-individuals cp ) )
+    ( setf np ( empty-population cp ) )
+    ( format t "------------------------------------------------------------------~%" )
+    ( display np )
+    ( format t "~%~%--------------------------------------------------------------" )
+    ( setf *copy-demo* t )
+    ( dotimes ( i 10 )
+        ( perform-one-copy cp np )
+        ( format t "------------------------------------------------------------------~%" )
+        ( display np )
+        ( format t "~%~%--------------------------------------------------------------" )
+    )
+    ( setf *copy-demo* nil )
 )
