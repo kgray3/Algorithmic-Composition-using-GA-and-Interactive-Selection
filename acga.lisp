@@ -2,7 +2,7 @@
 ; Hybridized constraint system and genetic algorithm for
 ; user-interactive algorithmic composition.
 
-( setf *beat-total* 24 )
+( setf *beat-total* 20 )
 ; Global var for current constraint array we are woring with
 ( setf *constraint-arr* '() )
 
@@ -391,12 +391,12 @@
 
 ; Method that displays melody1 of a music sample
 ( defmethod display-melody1 ( (m music) )
-    ( format t "~{~a~^ ~}~%" ( display-notes-list ( music-melody1 m ) ) )
+    ( format t "~{~a~^ ~}" ( display-notes-list ( music-melody1 m ) ) )
 )
 
 ; Method that displays melody2 of a music sample
 ( defmethod display-melody2 ( (m music) )
-    ( format t "~{~a~^ ~}~%" ( display-notes-list ( music-melody2 m ) ) )
+    ( format t "~{~a~^ ~}" ( display-notes-list ( music-melody2 m ) ) )
 )
 
 ; Method that displays melody3 of a music sample
@@ -626,7 +626,7 @@
 )
 
 ; Global variable for the size of a population.
-( defconstant *population-size* 100 )
+( defconstant *population-size* 25 )
 
 ; Global variable for the size of selection.
 ( setf *selection-size* 3 )
@@ -734,7 +734,15 @@
         )
         (t
             ( setf current-sample ( car selected-samples ) )
-            ( easyabc-display current-sample )
+            
+            (if ( and
+                    (not *easyabc-mode*)
+                    ( = *selection-size* ( length selected-samples ) )
+                )
+                ( musescore-display selected-samples )
+            )
+            (if *easyabc-mode* ( easyabc-display current-sample ) )
+            ( format t "[Sample ~A] " ( - *selection-size* ( length selected-samples ) ) )
             ( format *query-io* "Melody 1 ranking (out of 10)? " )
             ( setf melody1-rank ( read-line *query-io* ) )
 
@@ -934,7 +942,7 @@
     ( setf selection ( select-individuals popu ) )
     ( assign-random-ranks selection )
     ( setf melody1-m ( most-fit-melody1 selection ) )
-    ( setf melody1-f ( most-fit-melody2 ( remove melody1-m selection ) ) )
+    ( setf melody1-f ( most-fit-melody1 ( remove melody1-m selection ) ) )
     ( format t "------------------MUSIC CROSSOVER TEST------------------~%")
     ( format t "Mother: ~%" )
     ( display-melody1 melody1-m ) 
@@ -1140,4 +1148,125 @@
         ( format t "~%~%--------------------------------------------------------------" )
     )
     ( setf *copy-demo* nil )
+)
+
+; Option to print in ABC Notation for MuseScore usage
+
+; toggle EasyABC mode
+( setf *easyabc-mode* nil )
+
+; Method to display all selections on one composition score in ABC notation
+( defmethod musescore-display ( ( selection list ) )
+    ( format t "----------------Selection----------------~%" )
+    ( format t "X:1~%")
+    ( format t "T:Selection~%" )
+    ( format t "C:Dystopian Tuesday~%" )
+    ( format t "M:4/4~%" )
+    ( format t "L:1/4~%" )
+    ( format t "Q:1/4=120~%")
+    ( format t "V:S clef=treble name=Melody1 snm=Melody1~%" )
+    ( format t "V:A clef=treble name=Melody2 snm=Melody2~%" )
+    ( format t "%%score [ ( S ) ( A ) ]~%")
+    ( format t "K:C~%" )
+    ( format t "%%MIDI program 0~%" )
+    ( mapcar #'musescore-display-helper selection )
+    nil
+
+)
+
+; Helper method to display a single selection
+( defmethod musescore-display-helper ( ( m music ) )
+    ( format t "V:S~%" )
+    ( display-melody1 m )
+    ( format t " z4 |]~%")
+    ( format t "V:A~%" )
+    ( display-melody2 m )
+    ( format t " z4 |]~%") 
+)
+
+; Population-Based Crossover Methods
+
+; Var for toggling debug statements for testing population crossover
+( setf *crossover-demo* nil )
+
+; Number of crossovers -- will be toggled, set for demo purposes currently
+( defconstant *nr-crossovers* 3 )
+
+; Method to perform a crossover for the amount of times desginated
+; by *nr-crossovers*
+( defmethod perform-crossovers ( ( cp population ) ( np population ) )
+    ( dotimes ( i *nr-crossovers* )
+        ( perform-one-crossover cp np )
+    )
+)
+
+; Method to perform one crossover
+;  1. Chooses selection of individuals.
+;  2. Chooses most fit melody1 and 2nd best melody1
+;     for mother1 and father1, respectively.
+;  3. Chooses most fit melody2 and 2nd best melody2
+;     for mother2 and father2, respectivelly.
+;  4. Performs crossover.
+;  5. Copies and renumbers music sample.
+;  6. Adds new music sample to next generation.
+( defmethod perform-one-crossover ( ( cp population ) ( np population ) )
+    ( let ( selection melody1-m melody1-f melody2-m melody2-f c mm )
+        
+        ( setf selection ( select-individuals cp ) )
+        ( interactive-selection selection )
+
+        ( setf melody1-m ( most-fit-melody1 selection ) )
+        ( setf melody1-f ( most-fit-melody1 ( remove melody1-m selection ) ) )
+        ( if *crossover-demo* ( format t "Selected melody1-m = ~%" ) )
+        ( if *crossover-demo* ( display-music-sample melody1-m ) )
+        ( if *crossover-demo* ( format t "Selected melody1-f = ~%" ) )
+        ( if *crossover-demo* ( display-music-sample melody1-f ) )
+
+        ( setf melody2-m ( most-fit-melody2 selection ) )
+        ( setf melody2-f ( most-fit-melody2 ( remove melody2-m selection ) ) )
+        ( if *crossover-demo* ( format t "Selected melody2-m = ~%" ) )
+        ( if *crossover-demo* ( display-music-sample melody2-m ) )
+        ( if *crossover-demo* ( format t "Selected melody2-f = ~%" ) )
+        ( if *crossover-demo* ( display-music-sample melody2-f ) )
+
+        ( setf c ( double-crossover melody1-m melody1-f melody2-m melody2-f ) )
+        ( if *crossover-demo* ( format t "the crossover = ~%" ) )
+        ( if *crossover-demo* ( display-music-sample c ) )
+
+        ( maybe-mutate c )
+        ( if *crossover-demo* ( format t "the possibly mutate individual = ~%" ) )
+        ( if *crossover-demo* ( display-music-sample c ) )
+
+        ( setf ( music-num c ) ( + 1 ( size np ) ) )
+        ( if *crossover-demo* ( format t "the renumbered individual = ~%" ) )
+        ( if *crossover-demo* ( display-music-sample c ) )
+
+        ( setf new-i ( copy-music-sample ( + 1 ( size np ) ) c ) )
+
+        ( setf
+            ( population-individuals np )
+            ( append ( population-individuals np ) ( list new-i ) )
+        )
+
+    
+    )
+    nil
+)
+
+; Demo of perform-crossovers method.
+( defmethod demo--perform-crossovers ( &aux cp np )
+    ( setf cp ( initial-population ) )
+    ( setf np ( empty-population cp ) )
+    ( format t "-----------------------------------------------------------------")
+    ( display np )
+    ( format t "~%~%-----------------------------------------------------------------")
+    ( setf *crossover-demo* t )
+    ( dotimes ( i 5 )
+        ( perform-one-crossover cp np )
+        ( format t "-----------------------------------------------------------------")
+        ( display np )
+        ( format t "~%~%-----------------------------------------------------------------")
+    )
+    ( setf *crossover-demo* nil )
+    nil
 )
