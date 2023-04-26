@@ -2,7 +2,6 @@
 ; Hybridized constraint system and genetic algorithm for
 ; user-interactive algorithmic composition.
 
-( setf *beat-total* 20 )
 ; Global var for current constraint array we are woring with
 ( setf *constraint-arr* '() )
 
@@ -592,7 +591,7 @@
     ; set instrument for midi
     ( format t "%%MIDI program 0~%" )
     ( display-melody1 sample )
-    ( format t "V:A~%" )
+    ( format t "~%V:A~%" )
     ( display-melody2 sample )
     ;( format t "V:T~%" )
     ;( format t "%%MIDI program 4~%" )
@@ -625,12 +624,6 @@
 
 )
 
-; Global variable for the size of a population.
-( defconstant *population-size* 25 )
-
-; Global variable for the size of selection.
-( setf *selection-size* 3 )
-
 ; Population Class -- consists of a list of music individuals and generation number.
 ( defclass population ()
     (
@@ -661,8 +654,8 @@
         ( prin1 i  )
 
         ( princ "  " )
-        ( prin1 ( music-rank i ) )
-        ( princ ( filler ( music-rank i ) ) )
+        ( prin1 ( float ( music-rank i ) ) )
+        ( princ ( filler ( float ( music-rank i ) ) ) )
          ( terpri )
         
         
@@ -716,8 +709,9 @@
     ( setf individuals ( population-individuals p ) )
     ( setf candidates () )
     ( dotimes ( i *selection-size* )
-        ( setf rn ( random *population-size* ) )
+        ( setf rn ( random ( length individuals ) ) )
         ( push ( nth rn individuals ) candidates )
+        ( setf individuals ( remove ( nth rn individuals ) individuals ) )
     )
     candidates
 )
@@ -737,12 +731,12 @@
             
             (if ( and
                     (not *easyabc-mode*)
-                    ( = *selection-size* ( length selected-samples ) )
+                    ( =  ( length selected-samples ) *selection-size* )
                 )
                 ( musescore-display selected-samples )
             )
             (if *easyabc-mode* ( easyabc-display current-sample ) )
-            ( format t "[Sample ~A] " ( - *selection-size* ( length selected-samples ) ) )
+            ( format t "[Sample ~A] " ( + ( - *selection-size* ( length selected-samples ) ) 1 ) )
             ( format *query-io* "Melody 1 ranking (out of 10)? " )
             ( setf melody1-rank ( read-line *query-io* ) )
 
@@ -839,8 +833,8 @@
     ( setf m1-crossover ( melody-crossover melody1-m1 melody1-f1 ) )
     ( setf m2-crossover ( melody-crossover melody2-m2 melody2-f2 ) )
 
-    ( setf new-melody2-rank ( + ( music-melody2-rank m2 ) ( music-melody2-rank f2 ) ) )
-    ( setf new-melody1-rank ( + ( music-melody1-rank m1 ) ( music-melody1-rank f1 ) ) )
+    ( setf new-melody2-rank ( + ( / ( music-melody2-rank m2 ) 2 ) ( / ( music-melody2-rank f2) 2 ) ) )
+    ( setf new-melody1-rank ( + ( / ( music-melody1-rank m1 ) 2 ) ( / ( music-melody1-rank f1) 2 ) ) )
     ( setf new-music-rank ( + new-melody2-rank new-melody1-rank ) )
 
     ( make-instance 'music
@@ -856,32 +850,59 @@
 
 )
 
+
+( defmethod iota ( n start )
+    ( cond
+        (( = n 0 )
+            '()
+        )
+        (t
+            ( cons start ( iota ( - n 1 ) ( + start 1 ) ) )
+        )
+    )
+
+)
 ; Method that performs the crossover of a single melody by
 ; taking the first half of one melody notes list and putting
 ; it together with the latter half of the melody notes list based
 ; on a randomly generated duration within *beat-total*.
 ( defmethod melody-crossover ( ( m list ) ( f list ) &aux dpos )
-    ( setf dpos ( + 1 ( random *beat-total* ) ) )
+    ( setf options ( iota *beat-total* 1 ) )
+    ( setf dpos ( car options ) )
 
     (setf result ( append ( first-n m dpos ) ( rest-n f dpos ) ))
 
+    ( loop while ( 
+                and
+                    (  not ( = ( length options ) 0 ) )
+                    (not ( = ( sum ( mapcar #'note-duration result ) ) *beat-total* ) )
+                
+            )
+       do
+        (setf result ( append ( first-n m dpos ) ( rest-n f dpos ) ))
+        ( setf options ( cdr options ) )
+        ( setf dpos ( car options ) )
+    )
+
     (cond
-        (( = ( sum ( mapcar #'note-duration result ) ) *beat-total* )
-            result
+        (( = ( length options ) 0  )
+            m
         )
         (t
-            ( melody-crossover m f )
+                result
         )
     )
     
     
 )
 
+
+
 ; Method that returns the first half of a given list
 ; based on duration.
 ( defmethod first-n ( ( m list ) dpos )
     (cond
-        (( <= dpos 0 )
+        (( or (<= dpos 0) ( = ( length m ) 0 ) )
             '()
         )
         (t
@@ -895,7 +916,7 @@
 ; based on input duration.
 ( defmethod rest-n ( ( f list ) dpos )
     (cond
-        (( <= dpos 0 )
+        (( or (<= dpos 0 ) ( = ( length f ) 0 ) )
             f
         )
         (t
@@ -997,8 +1018,7 @@
 
 ; ----------Population Mutation Methods----------
 
-; percentage of mutation (set at 50%)
-( defconstant *pc-m* 50 )
+
 
 ; Mutates music samples based on *pc-m* probability
 ( defmethod maybe-mutate ( ( m music ) )
@@ -1033,8 +1053,6 @@
 ;------------- COPY CODE -------------
 ( setf *copy-demo* nil )
 
-; Constant denoting percentage of copies
-( defconstant *pc-c* 40 )
 
 ; Method to perform the number of copies as directed by
 ; the number assigned to *pc-c*
@@ -1189,15 +1207,17 @@
 ; Var for toggling debug statements for testing population crossover
 ( setf *crossover-demo* nil )
 
-; Number of crossovers -- will be toggled, set for demo purposes currently
-( defconstant *nr-crossovers* 3 )
 
 ; Method to perform a crossover for the amount of times desginated
 ; by *nr-crossovers*
 ( defmethod perform-crossovers ( ( cp population ) ( np population ) )
-    ( dotimes ( i *nr-crossovers* )
+    ( dotimes ( i ( nr-crossovers ) )
         ( perform-one-crossover cp np )
     )
+)
+
+( defmethod nr-crossovers ()
+    ( * ( / *pc-x* 100 ) *population-size* )
 )
 
 ; Method to perform one crossover
@@ -1213,17 +1233,16 @@
     ( let ( selection melody1-m melody1-f melody2-m melody2-f c mm )
         
         ( setf selection ( select-individuals cp ) )
-        ( interactive-selection selection )
 
         ( setf melody1-m ( most-fit-melody1 selection ) )
-        ( setf melody1-f ( most-fit-melody1 ( remove melody1-m selection ) ) )
+        ( setf melody1-f ( most-fit-melody1 ( remove melody1-m selection :count 1 ) ) )
         ( if *crossover-demo* ( format t "Selected melody1-m = ~%" ) )
         ( if *crossover-demo* ( display-music-sample melody1-m ) )
         ( if *crossover-demo* ( format t "Selected melody1-f = ~%" ) )
         ( if *crossover-demo* ( display-music-sample melody1-f ) )
 
         ( setf melody2-m ( most-fit-melody2 selection ) )
-        ( setf melody2-f ( most-fit-melody2 ( remove melody2-m selection ) ) )
+        ( setf melody2-f ( most-fit-melody2 ( remove melody2-m selection :count 1 ) ) )
         ( if *crossover-demo* ( format t "Selected melody2-m = ~%" ) )
         ( if *crossover-demo* ( display-music-sample melody2-m ) )
         ( if *crossover-demo* ( format t "Selected melody2-f = ~%" ) )
@@ -1270,3 +1289,69 @@
     ( setf *crossover-demo* nil )
     nil
 )
+
+
+; Method to generate the next generation based on the current population
+( defmethod next-generation ( ( cp population ) &aux np )
+    ( setf np ( empty-population cp ) )
+    ( perform-copies cp np )
+    ( perform-crossovers cp np )
+    np
+)
+
+
+; The genetic algorithm 
+( defmethod ga ( &aux p )
+    ( setf p ( initial-population ) )
+    ( display p )
+    ( dotimes ( i *nr-generations* )
+        ( cond 
+            (( = ( mod i *user-interaction-g* ) 0 )
+                (cond
+                    (( = *population-size* *selection-size* )
+                        ( interactive-selection ( population-individuals p ) )
+                    )
+                    (t 
+                        ( interactive-selection ( select-individuals p ) )
+                    )
+                )
+            )
+        )
+        
+        ( setf p ( next-generation p ) )
+        ( check-average p )
+        ( display p )
+    )
+    ( terpri )
+    ; The most fit music sample is displayed at the end
+    ( display-music-sample ( most-fit-music-sample ( population-individuals p ) ) )
+    ( terpri )
+    ( easyabc-display ( most-fit-music-sample ( population-individuals p ) ) )
+    ;( display p )
+
+)
+
+; Method to check the eaverage of a population
+( defmethod check-average ( ( p population ) )
+    ( format t "average fitness of population ~A = ~A~%"
+        ( population-generation p )
+        ( average p )
+    )
+)
+
+; Constant for the desired number of beats
+( setf *beat-total* 8 )
+; Constant for the total number of generations
+( defconstant *nr-generations* 10)
+; Constant representing how many generations pass before the user ranks again
+( defconstant *user-interaction-g* 2 )
+; percentage of mutation (set at 50%)
+( defconstant *pc-m* 50 )
+; Constant denoting percentage of copies
+( setf *pc-c* 40 )
+; Global variable for the crossover percentage.
+( defconstant *pc-x* 60 )
+; Global variable for the size of a population.
+( defconstant *population-size* 20 )
+; Global variable for the size of selection.
+( setf *selection-size* 3 )
